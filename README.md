@@ -2,6 +2,11 @@
 
 ## SHAHRVAND chain stores, aggregate sell information and analyze the data!
 
+### Prerequired Packages
+for running the program, you need to install this packages : 
+1. $ **'sudo apt-get install libpq-dev'**
+
+### Run the Project
 to use the project; follow the below steps:
 
 1. clone the project
