@@ -7,6 +7,12 @@ for running the program, you need to install this packages :
 1. $ **'sudo apt-get install libpq-dev'**
 2. $ **'sudo apt install python3-dev libpq-dev'**
 3. $ **'pip3 install psycopg2'**
+4. $ **'sudo nano /etc/postgresql/11/main/pg_hba.conf'**
+   find the following part of file:
+            # Database administrative login by Unix domain socket
+            local   all             postgres                                peer
+   change **'peer'** to **'trust'** and save the file (press : ctrl+x then press y)
+   reload the server to apply the changes : $ **'sudo service postgresql restart'**
 
 
 ### Run the Project
