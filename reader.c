@@ -10,31 +10,6 @@
 const char * directory = "/tmp/final_project/";
 
 
-char *trim_white_space(char *str) {
-    char *end;
-    while((unsigned char)*str == ' ')
-        str++;
-    if(*str == 0)
-        return str;
-    end = str + strlen(str) - 1;
-    while(end > str && ((unsigned char)*end) == ' ')
-        end--;
-    end[1] = '\0';
-    return str;
-}
-
-
-void print_result(int return_value) {
-    if (return_value == 0) {
-        printf("Pattern found.\n");
-    }   else if (return_value == _REG_NOMATCH) {
-        printf("Pattern not found.\n");
-    }   else {
-        printf("An error occured.\n");
-    }
-}
-
-
 int line_to_command(char *line, char *command) {
     strcpy(command, "INSERT INTO fp_stores_data (time, province, city, market_id, product_id, price, quantity, " \
         "has_sold) VALUES (");
@@ -43,46 +18,39 @@ int line_to_command(char *line, char *command) {
 
     while (token != NULL) {
 
-        // if (data_index == 1) {
+        if (data_index == 1) {
+            int l = strlen(token);
+            if (l != 10)    {
+                return 0;
+            }
+        }
+
+        // if (data_index == 2 || data_index == 3) {
         //     strcat(command, "'");
         //     regex_t regex;
-        //     int compile = regcomp(&regex, "^(?:(?:([01]?\\d|2[0-3]):)?([0-5]?\\d):)?([0-5]?\\d)$", 0);
-        //     if (compile != 0)   {
-        //         printf("regex compile error\n");
+        //     regcomp(&regex, "^[a-zA-Z ]+$", REG_EXTENDED);
+        //     int retval;
+        //     if ((retval = regexec(&regex, token, 0, NULL, 0)) == 0) {
+        //         strcat(command, token);
+        //         printf("yes\n");
+        //     } else  {
+        //         printf("no\n");
+        //         return 0;
         //     }
-        //     int return_value = regexec(&regex, token, 0, NULL, 0);
-        //     print_result(return_value);
-        //     // if (return_value != 0)  {
-        //     //     return NULL;
-        //     // }   else    {
-        //     //     strcat(command, token);
-        //     // } 
         //     strcat(command, "'");
-        // }
 
-    //     }   else if (data_index == 2 || data_index == 3) {
-    //         strcat(command, "'");
-    //         regex_t regex;
-    //         regcomp(&regex, "^[A-Za-z]+$", 0);
-    //         int return_value = regexec(&regex, token, 0, NULL, 0);
-    //         print_result(return_value);
-    //         strcat(command, "'");
-
-    //     }   else {
-    //         regex_t regex;
-    //         regcomp(&regex, "^\\d+$", 0);
-    //         int return_value = regexec(&regex, token, 0, NULL, 0);
-    //         print_result(return_value);
-    //     }
+        // }   else {
+        if (data_index == 1 || data_index > 3)  {
+            regex_t regex;
+            regcomp(&regex, "^[[:digit:]]+$", REG_EXTENDED);
+            int retval;
+            if ((retval = regexec(&regex, token, 0, NULL, 0)) == 0) {
+                strcat(command, token);
+            } else  {
+                return 0;
+            }
+        }
         
-        if (data_index <= 3)    {
-            strcat(command, "'");
-        }
-        token = trim_white_space(token);
-        strcat(command, token);
-        if (data_index <= 3)    {
-            strcat(command, "'");
-        }
         if (data_index < 8) {
             strcat(command, ", ");
         }   else if ( data_index > 8)   {
@@ -92,7 +60,7 @@ int line_to_command(char *line, char *command) {
         data_index++;
     }
     strcat(command, ")");
-    // printf("%s\n", command);
+    printf("%s\n", command);
     return data_index == 9;
 }
 
@@ -136,15 +104,19 @@ int read_file(FILE *file, PGconn *conn) {
     char line[1000];
     while (fgets(line, sizeof(line), file)) {   //  step 1
         is_text_file = 1;
+        // printf("%s\n", line);
 
         int l = strlen(line);
         line[l-1] = '\0';       //  remove last '\n' from the read line
+        line[l-2] = '\0';       //  remove last '\r' from the read line
 
         char command[1000];
         int valid = line_to_command(line, command);
-        if (valid)    {
-            execute_query(command, conn);
-        }
+        
+        // if (valid)    {
+        //     execute_query(command, conn);
+        // }
+        break;
     }
     return is_text_file;
 }
@@ -183,12 +155,12 @@ int main(void) {
         // delete_file(name);
     }
 
-    execute_query("DROP TABLE IF EXISTS fp_city_aggregation", conn);        //  step 2: aggregations
-    execute_query("CREATE TABLE fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, SUM(has_sold) AS " \
-        "total_has_sold FROM fp_stores_data GROUP BY city, time ORDER BY city, time", conn);
-    execute_query("DROP TABLE IF EXISTS fp_store_aggregation", conn);    
-    execute_query("CREATE TABLE fp_store_aggregation AS SELECT market_id, SUM(has_sold) AS total_has_sold, SUM(has_sold * price)" \
-        " AS total_price FROM fp_stores_data GROUP BY market_id", conn);
+    // execute_query("DROP TABLE IF EXISTS fp_city_aggregation", conn);        //  step 2: aggregations
+    // execute_query("CREATE TABLE fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, SUM(has_sold) AS " \
+    //     "total_has_sold FROM fp_stores_data GROUP BY city, time ORDER BY city, time", conn);
+    // execute_query("DROP TABLE IF EXISTS fp_store_aggregation", conn);    
+    // execute_query("CREATE TABLE fp_store_aggregation AS SELECT market_id, SUM(has_sold) AS total_has_sold, SUM(has_sold * price)" \
+    //     " AS total_price FROM fp_stores_data GROUP BY market_id", conn);
 
     PQfinish(conn); 
 	closedir(dr);
