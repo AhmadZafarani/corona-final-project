@@ -10,6 +10,14 @@
 const char * directory = "/tmp/final_project/";
 
 
+int regex_validation(const char *reg, char *token)   {
+    regex_t regex;
+    regcomp(&regex, reg, REG_EXTENDED);
+    int retval = regexec(&regex, token, 0, NULL, 0);
+    return retval == 0;
+}
+
+
 int line_to_command(char *line, char *command) {
     strcpy(command, "INSERT INTO fp_stores_data (time, province, city, market_id, product_id, price, quantity, " \
         "has_sold) VALUES (");
@@ -18,49 +26,42 @@ int line_to_command(char *line, char *command) {
 
     while (token != NULL) {
 
-        if (data_index == 1) {
+        if (data_index == 1) {      //  time validation : must be 10 digits
             int l = strlen(token);
             if (l != 10)    {
+                printf("one%s\t%d\n", line, data_index);
                 return 0;
             }
         }
 
-        // if (data_index == 2 || data_index == 3) {
-        //     strcat(command, "'");
-        //     regex_t regex;
-        //     regcomp(&regex, "^[a-zA-Z ]+$", REG_EXTENDED);
-        //     int retval;
-        //     if ((retval = regexec(&regex, token, 0, NULL, 0)) == 0) {
-        //         strcat(command, token);
-        //         printf("yes\n");
-        //     } else  {
-        //         printf("no\n");
-        //         return 0;
-        //     }
-        //     strcat(command, "'");
-
-        // }   else {
-        if (data_index == 1 || data_index > 3)  {
-            regex_t regex;
-            regcomp(&regex, "^[[:digit:]]+$", REG_EXTENDED);
-            int retval;
-            if ((retval = regexec(&regex, token, 0, NULL, 0)) == 0) {
+        if (data_index == 2 || data_index == 3) {       //  province and city validation
+            strcat(command, "'");
+            if (regex_validation("^[چژئجحخهعغفقثصضشسیِبُلاتنمکگوپدؤَذرزطظآ‌ ]+$", token)) {
                 strcat(command, token);
             } else  {
+                printf("two%s\t%d\n", line, data_index);
+                return 0;
+            }
+            strcat(command, "'");
+        }   else if (data_index == 1 || data_index > 3)  {      //  number validation
+            if (regex_validation("^[[:digit:]]+$", token)) {
+                strcat(command, token);
+            } else  {
+                printf("three%s\t%d\n", line, data_index);
                 return 0;
             }
         }
         
         if (data_index < 8) {
             strcat(command, ", ");
-        }   else if ( data_index > 8)   {
+        }   else if ( data_index > 8)   {       //  error : more than 8 items
+            printf("four%s\t%d\n", line, data_index);
             return 0;
         }
         token = strtok(NULL, ",");
         data_index++;
     }
     strcat(command, ")");
-    printf("%s\n", command);
     return data_index == 9;
 }
 
@@ -104,7 +105,6 @@ int read_file(FILE *file, PGconn *conn) {
     char line[1000];
     while (fgets(line, sizeof(line), file)) {   //  step 1
         is_text_file = 1;
-        // printf("%s\n", line);
 
         int l = strlen(line);
         line[l-1] = '\0';       //  remove last '\n' from the read line
@@ -113,12 +113,23 @@ int read_file(FILE *file, PGconn *conn) {
         char command[1000];
         int valid = line_to_command(line, command);
         
-        // if (valid)    {
-        //     execute_query(command, conn);
-        // }
-        break;
+        if (valid)    {
+            execute_query(command, conn);
+        }
     }
     return is_text_file;
+}
+
+
+void aggregation(PGconn * conn)  {
+    execute_query("DROP TABLE IF EXISTS fp_city_aggregation", conn);        //  step 2: aggregations
+    execute_query("CREATE TABLE fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, SUM(has_sold) AS " \
+        "total_has_sold FROM fp_stores_data GROUP BY city, time ORDER BY city, time", conn);
+    printf("fp_city_aggregation table created! :)\n");
+    execute_query("DROP TABLE IF EXISTS fp_store_aggregation", conn);    
+    execute_query("CREATE TABLE fp_store_aggregation AS SELECT market_id, SUM(has_sold) AS total_has_sold, SUM(has_sold * price)" \
+        " AS total_price FROM fp_stores_data GROUP BY market_id", conn);
+    printf("fp_store_aggregation table created! :)\n");
 }
 
 
@@ -152,16 +163,10 @@ int main(void) {
         printf("file %s opened!\nall VALID data of %s file inserted in fp_stores_data table!\n", name, name);
         fclose(file);
 
-        // delete_file(name);
+        delete_file(name);
     }
 
-    // execute_query("DROP TABLE IF EXISTS fp_city_aggregation", conn);        //  step 2: aggregations
-    // execute_query("CREATE TABLE fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, SUM(has_sold) AS " \
-    //     "total_has_sold FROM fp_stores_data GROUP BY city, time ORDER BY city, time", conn);
-    // execute_query("DROP TABLE IF EXISTS fp_store_aggregation", conn);    
-    // execute_query("CREATE TABLE fp_store_aggregation AS SELECT market_id, SUM(has_sold) AS total_has_sold, SUM(has_sold * price)" \
-    //     " AS total_price FROM fp_stores_data GROUP BY market_id", conn);
-
+    aggregation(conn);
     PQfinish(conn); 
 	closedir(dr);
 	return 0;
