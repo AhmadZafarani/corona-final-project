@@ -10,6 +10,7 @@ for running the program, you need to install this packages :
 4. $ **'sudo nano /etc/postgresql/11/main/pg_hba.conf'**
 
    find the following part of file:
+   
             # Database administrative login by Unix domain socket
             local   all             postgres                                peer
 
