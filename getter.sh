@@ -11,7 +11,7 @@ do
     wget http://loh.istgahesalavati.ir/report.gz.tar
     tar -xvf report.gz.tar
     rm report.gz.tar
-    mv *.text /tmp/final_project
+    mv * /tmp/final_project
     ./reader.o
     sleep 60
     # index=`expr $index + 1`
