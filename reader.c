@@ -19,9 +19,7 @@ int regex_validation(const char *reg, char *token)   {
 }
 
 
-int line_to_command(char *line, char *command) {
-    strcpy(command, "INSERT INTO fp_stores_data (time, province, city, market_id, product_id, price, quantity, " \
-        "has_sold) VALUES (");
+int validate_line(char *line) {
     int data_index = 1;
     char * token = strtok(line, ",");
 
@@ -36,33 +34,24 @@ int line_to_command(char *line, char *command) {
         }
 
         if (data_index == 2 || data_index == 3) {       //  province and city validation
-            strcat(command, "'");
-            if (regex_validation("^[چژئجحخهعغفقثصضشسیِبُلاتنمکگوپدؤَذرزطظآ‌ ]+$", token)) {
-                strcat(command, token);
-            } else  {
+            if (!regex_validation("^[چژئجحخهعغفقثصضشسیِبُلاتنمکگوپدؤَذرزطظآ‌ ]+$", token)) {
                 fprintf(log_file, "two%s\t%d\n", line, data_index);
                 return 0;
             }
-            strcat(command, "'");
         }   else if (data_index == 1 || data_index > 3)  {      //  number validation
-            if (regex_validation("^[[:digit:]]+$", token)) {
-                strcat(command, token);
-            } else  {
+            if (!regex_validation("^[[:digit:]]+$", token)) {
                 fprintf(log_file, "three%s\t%d\n", line, data_index);
                 return 0;
             }
         }
         
-        if (data_index < 8) {
-            strcat(command, ", ");
-        }   else if ( data_index > 8)   {       //  error : more than 8 items
+        if ( data_index > 8)   {       //  error : more than 8 items
             fprintf(log_file, "four%s\t%d\n", line, data_index);
             return 0;
         }
         token = strtok(NULL, ",");
         data_index++;
     }
-    strcat(command, ")");
     return data_index == 9;
 }
 
@@ -107,45 +96,45 @@ PGconn *connect_to_database()   {
 
 int read_file(FILE *file, PGconn *conn) {
     int is_text_file = 0;       //  if the file isn't a text file, continue
+
     char line[1000];
+    char line_copy[1000];
+
+    const char * temp_name = "/tmp/final_project/temp.txt";
+    FILE * temp = fopen(temp_name, "w");
+
     while (fgets(line, sizeof(line), file)) {   //  step 1
         is_text_file = 1;
 
         int l = strlen(line);
         line[l-1] = '\0';       //  remove last '\n' from the read line
         line[l-2] = '\0';       //  remove last '\r' from the read line
+        strcpy(line_copy, line);
 
-        char command[1000];
-        int valid = line_to_command(line, command);
-        
-        if (valid)    {
-            execute_query(command, conn);
+        if (validate_line(line))    {
+            fprintf(temp, "%s\n", line_copy);
         }
     }
+    fclose(temp);
+    execute_query("COPY fp_stores_data FROM '/tmp/final_project/temp.txt' WITH (FORMAT csv)", conn);
+    remove(temp_name);
     return is_text_file;
 }
 
 
 void aggregation(PGconn * conn)  {    //  step 2: aggregations
-    execute_query("CREATE TABLE IF NOT EXISTS fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, " \
+    execute_query("DROP TABLE IF EXISTS fp_city_aggregation", conn);
+    execute_query("CREATE TABLE fp_city_aggregation AS SELECT city, time, SUM(quantity) AS total_quantity, " \
         "SUM(has_sold) AS total_has_sold FROM fp_stores_data GROUP BY city, time ORDER BY city, time", conn);
     fprintf(log_file, "fp_city_aggregation table created! :)\n");
-    execute_query("CREATE TABLE IF NOT EXISTS fp_store_aggregation AS SELECT market_id, SUM(has_sold) AS total_has_sold, " \
-        "SUM(has_sold * price) AS total_price FROM fp_stores_data GROUP BY market_id", conn);
+    execute_query("DROP TABLE IF EXISTS fp_store_aggregation", conn);
+    execute_query("CREATE TABLE IF NOT EXISTS fp_store_aggregation AS SELECT market_id, time, SUM(has_sold) AS total_has_sold" \
+        ", SUM(has_sold * price) AS total_price FROM fp_stores_data GROUP BY market_id, time ORDER BY market_id, time", conn);
     fprintf(log_file, "fp_store_aggregation table created! :)\n");
-}   // todo 
-
-
-void delete_file(char *name)  {
-    char command[50];       // delete the files after reading them
-    strcpy(command, "rm -f ");
-    strcat(command, name);
-    system(command);
-    fprintf(log_file, "file %s deleted!\n", name);
 }
 
 
-int main(void) { 
+int main(void)  {
 	struct dirent *de;
     log_file = fopen("report.log", "a");
     DIR *dr = open_directory(de);
@@ -166,7 +155,8 @@ int main(void) {
         fprintf(log_file, "file %s opened!\nall VALID data of %s file inserted in fp_stores_data table!\n", name, name);
         fclose(file);
 
-        delete_file(name);
+        remove(name);
+        fprintf(log_file, "file %s deleted!\n", name);
     }
 
     aggregation(conn);
