@@ -1,6 +1,8 @@
 # YA REZA
 import psycopg2
 import time
+from matplotlib import pyplot as plt
+import os
 
 
 def most_popular_product_in_province():
@@ -49,7 +51,24 @@ def best_and_worst_ten_liquity():
 
 
 def sell_quantity_change_by_time():
-    pass
+    directory = "./sell_quantity_change_by_time_results"
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+
+    cur.execute('SELECT * FROM (SELECT product_id, COUNT(time), AVG(has_sold) FROM fp_stores_data GROUP BY product_id) AS foo \
+        WHERE COUNT>1 ORDER BY COUNT')
+    result = cur.fetchall()
+    for r in result:
+        string = "SELECT time, AVG(has_sold) FROM fp_stores_data WHERE product_id=%d GROUP BY time ORDER BY time" %r[0]
+        cur.execute(string)
+        points = cur.fetchall()
+        X = [x[0] for x in points]
+        Y = [int(y[1]) for y in points]
+        plt.plot(Y, X)
+        plt.xlabel("time")
+        plt.ylabel("avrage has sold")
+        plt.title("product id: %d" %r[0])
+        plt.savefig(os.path.join(directory, "%d.png"%r[0]))
 
 
 starttime = time.time()
@@ -66,4 +85,5 @@ while True:
     
     cur.close()
     conn.close()
+    # break
     time.sleep(1800.0 - ((time.time() - starttime) % 1800.0))

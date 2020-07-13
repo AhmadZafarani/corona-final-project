@@ -8,6 +8,7 @@ for running the program, you need to install this packages :
 2. $ **'sudo apt install python3-dev libpq-dev'**
 3. $ **'pip3 install psycopg2'**
 4. $ **'sudo nano /etc/postgresql/11/main/pg_hba.conf'**
+5. $ **'pip3 install matplotlib'**
 
    find the following part of file:
    

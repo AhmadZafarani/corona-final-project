@@ -2,3 +2,4 @@
 *.txt
 *.odt
 *.log
+/sell*
