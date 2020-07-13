@@ -55,20 +55,24 @@ def sell_quantity_change_by_time():
     if not os.path.exists(directory):
         os.mkdir(directory)
 
-    cur.execute('SELECT * FROM (SELECT product_id, COUNT(time), AVG(has_sold) FROM fp_stores_data GROUP BY product_id) AS foo \
-        WHERE COUNT>1 ORDER BY COUNT')
+    cur.execute('SELECT * FROM (SELECT product_id, COUNT(DISTINCT time) FROM fp_stores_data GROUP BY product_id) AS foo WHERE \
+        COUNT>1 ORDER BY COUNT')
     result = cur.fetchall()
     for r in result:
         string = "SELECT time, AVG(has_sold) FROM fp_stores_data WHERE product_id=%d GROUP BY time ORDER BY time" %r[0]
         cur.execute(string)
         points = cur.fetchall()
+
         X = [x[0] for x in points]
         Y = [int(y[1]) for y in points]
-        plt.plot(Y, X)
+        plt.scatter(X, Y)
+        plt.plot(X, Y)
         plt.xlabel("time")
         plt.ylabel("avrage has sold")
         plt.title("product id: %d" %r[0])
         plt.savefig(os.path.join(directory, "%d.png"%r[0]))
+        # plt.show()
+        # break
 
 
 starttime = time.time()
