@@ -28,3 +28,5 @@ to use the project; follow the below steps:
 4. and finally type this command to start the project : **'./getter.sh'**
 5. open new terminal and run the python program to get the analyzing reports
 
+
+you can see logs of each time 'reader.c' executed (every one minute), in a file created beside the project: 'report.log'
